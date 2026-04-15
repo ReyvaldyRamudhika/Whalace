@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import type { User, Post, CandleType, Session, Comment } from './types'
+import type { User, Post, CandleType, Session, Comment, Media } from './types'
 
 interface RealtimeContextType {
   session: Session | null
@@ -12,9 +12,9 @@ interface RealtimeContextType {
   login: (userId: string, candleType: CandleType) => Promise<boolean>
   logout: () => void
   register: (candleType: CandleType) => Promise<User>
-  addPost: (content: string) => Promise<void>
+  addPost: (content: string, media?: Media[]) => Promise<void>
   likePost: (postId: string) => Promise<void>
-  addComment: (postId: string, content: string) => Promise<void>
+  addComment: (postId: string, content: string, media?: Media[]) => Promise<void>
   getUserById: (userId: string) => User
 }
 
@@ -158,13 +158,13 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('serenity_session')
   }, [])
 
-  const addPost = useCallback(async (content: string) => {
+  const addPost = useCallback(async (content: string, media: Media[] = []) => {
     if (!session) return
     
     await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: session.user.id, content })
+      body: JSON.stringify({ userId: session.user.id, content, media })
     })
     // Post will be added via SSE
   }, [session])
@@ -180,13 +180,13 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     // Like update will come via SSE
   }, [session])
 
-  const addComment = useCallback(async (postId: string, content: string) => {
+  const addComment = useCallback(async (postId: string, content: string, media: Media[] = []) => {
     if (!session) return
     
     await fetch(`/api/posts/${postId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: session.user.id, content })
+      body: JSON.stringify({ userId: session.user.id, content, media })
     })
     // Comment will be added via SSE
   }, [session])

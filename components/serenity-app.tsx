@@ -14,7 +14,7 @@ export function SerenityApp() {
   const [appState, setAppState] = useState<AppState>('scanner')
   const [selectedCandle, setSelectedCandle] = useState<CandleType | null>(null)
   const { session, isLoading } = useRealtime()
-  const { stopSound } = useAudio()
+  const { stopSound, selectTheme } = useAudio()
 
   useEffect(() => {
     // If user is already logged in, they still need to scan first
@@ -22,15 +22,10 @@ export function SerenityApp() {
   }, [session])
 
   const handleScan = (candleType: CandleType) => {
+    selectTheme(candleType)
     setSelectedCandle(candleType)
-    // Check if user already exists
-    if (session) {
-      // Existing user - go directly to feed
-      setAppState('feed')
-    } else {
-      // New user - show auth form
-      setAppState('auth')
-    }
+    // Always show auth form after scanning candle
+    setAppState('auth')
   }
 
   const handleAuthComplete = () => {

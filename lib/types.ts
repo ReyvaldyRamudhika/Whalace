@@ -5,12 +5,20 @@ export interface User {
   createdAt: string
 }
 
+export interface Media {
+  id: string
+  url: string
+  type: string
+  name: string
+}
+
 export interface Post {
   id: string
   userId: string
   content: string
   createdAt: string
   likes: string[]
+  media?: Media[]
   comments: Comment[]
 }
 
@@ -19,6 +27,7 @@ export interface Comment {
   userId: string
   content: string
   createdAt: string
+  media?: Media[]
 }
 
 export type CandleType = 'rain' | 'forest' | 'ocean'

@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useRealtime } from '@/lib/realtime-context'
 import { useAudio } from '@/lib/audio-context'
 import type { CandleType } from '@/lib/types'
-import { Droplets, TreesIcon as Trees, Waves, Sparkles, ArrowRight } from 'lucide-react'
+import { Droplets, TreesIcon as Trees, Waves, Sparkles, ArrowRight, Clipboard, Check } from 'lucide-react'
 
 interface AuthFormProps {
   candleType: CandleType
@@ -25,7 +26,10 @@ export function AuthForm({ candleType, onComplete, onBack }: AuthFormProps) {
   const [isNewUser, setIsNewUser] = useState(true)
   const [existingUserId, setExistingUserId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const { register, login } = useRealtime()
+  const [showTokenDialog, setShowTokenDialog] = useState(false)
+  const [createdUserId, setCreatedUserId] = useState('')
+  const [copied, setCopied] = useState(false)
+  const { register, login, session } = useRealtime()
   const { playSound } = useAudio()
 
   const candleInfo = CANDLE_INFO[candleType]
@@ -33,22 +37,40 @@ export function AuthForm({ candleType, onComplete, onBack }: AuthFormProps) {
 
   useEffect(() => {
     // Check if there's an existing user for quick login
-    const storedSession = localStorage.getItem('serenity_session')
-    if (storedSession) {
-      const session = JSON.parse(storedSession)
+    if (session) {
       setExistingUserId(session.user.id)
       setIsNewUser(false)
     }
-  }, [])
+  }, [session])
 
   const handleNewUser = async () => {
     setIsLoading(true)
     try {
-      await register(candleType)
+      const user = await register(candleType)
+      setCreatedUserId(user.id)
+      setShowTokenDialog(true)
       playSound(candleType)
-      onComplete()
     } catch {
       setIsLoading(false)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleTokenDialogChange = (open: boolean) => {
+    setShowTokenDialog(open)
+    if (!open && createdUserId) {
+      onComplete()
+    }
+  }
+
+  const copyToken = async () => {
+    try {
+      await navigator.clipboard.writeText(createdUserId)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2500)
+    } catch {
+      alert('Unable to copy token. Please copy it manually.')
     }
   }
 
@@ -191,6 +213,36 @@ export function AuthForm({ candleType, onComplete, onBack }: AuthFormProps) {
             </Button>
           </CardContent>
         </Card>
+
+        <Dialog open={showTokenDialog} onOpenChange={handleTokenDialogChange}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Save your login token</DialogTitle>
+              <DialogDescription>
+                Make sure this code is saved by you. It is required to log in again later.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-2xl border border-border bg-muted p-4 shadow-sm">
+              <p className="text-xs text-muted-foreground mb-2">Your anonymous login token</p>
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-3">
+                <span className="truncate text-foreground">{createdUserId}</span>
+                <button
+                  type="button"
+                  onClick={copyToken}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary/90"
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Clipboard className="w-4 h-4" />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button className="w-full">Continue</Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <div className="mt-6 text-center">
           <p className="text-xs text-muted-foreground max-w-xs mx-auto">

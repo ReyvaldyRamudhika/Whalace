@@ -16,6 +16,9 @@ interface PostCardProps {
 export function PostCard({ post }: PostCardProps) {
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState('')
+  const [commentMediaData, setCommentMediaData] = useState('')
+  const [commentMediaName, setCommentMediaName] = useState('')
+  const [commentMediaType, setCommentMediaType] = useState('')
   const [isLiking, setIsLiking] = useState(false)
   const [isCommenting, setIsCommenting] = useState(false)
   const { session, likePost, addComment, getUserById } = useRealtime()
@@ -34,14 +37,48 @@ export function PostCard({ post }: PostCardProps) {
   }
 
   const handleComment = async () => {
-    if (!commentText.trim() || isCommenting) return
+    const canSubmit = commentText.trim() || commentMediaData
+    if (!canSubmit || isCommenting) return
+    
+    const media = commentMediaData
+      ? [{
+          id: Math.random().toString(36).substring(2) + Date.now().toString(36),
+          url: commentMediaData,
+          type: commentMediaType,
+          name: commentMediaName
+        }]
+      : []
+
     setIsCommenting(true)
     try {
-      await addComment(post.id, commentText)
+      await addComment(post.id, commentText, media)
       setCommentText('')
+      setCommentMediaData('')
+      setCommentMediaName('')
+      setCommentMediaType('')
     } finally {
       setIsCommenting(false)
     }
+  }
+
+  const handleCommentMediaChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      setCommentMediaData(result)
+      setCommentMediaName(file.name)
+      setCommentMediaType(file.type)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveCommentMedia = () => {
+    setCommentMediaData('')
+    setCommentMediaName('')
+    setCommentMediaType('')
   }
 
   return (
@@ -64,6 +101,19 @@ export function PostCard({ post }: PostCardProps) {
           <p className="mt-2 text-foreground whitespace-pre-wrap break-words leading-relaxed">
             {post.content}
           </p>
+
+          {post.media?.length ? (
+            <div className="mt-4 grid gap-3">
+              {post.media.map((mediaItem) => (
+                <img
+                  key={mediaItem.id}
+                  src={mediaItem.url}
+                  alt={mediaItem.name}
+                  className="rounded-2xl w-full object-cover"
+                />
+              ))}
+            </div>
+          ) : null}
           
           <div className="flex items-center gap-4 mt-3 pt-2 border-t border-border/50">
             <Button
@@ -113,6 +163,18 @@ export function PostCard({ post }: PostCardProps) {
                             </span>
                           </div>
                           <p className="text-sm text-foreground mt-0.5">{comment.content}</p>
+                          {comment.media?.length ? (
+                            <div className="mt-2 grid gap-2">
+                              {comment.media.map((mediaItem) => (
+                                <img
+                                  key={mediaItem.id}
+                                  src={mediaItem.url}
+                                  alt={mediaItem.name}
+                                  className="rounded-2xl w-full object-cover"
+                                />
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     )
@@ -120,13 +182,13 @@ export function PostCard({ post }: PostCardProps) {
                 </div>
               )}
               
-              <div className="flex gap-2">
-                <Avatar className="w-7 h-7 shrink-0">
-                  <AvatarFallback className={`${session?.user.avatarColor || 'bg-muted'} text-white text-xs font-semibold`}>
-                    {session?.user.anonymousName.split(' ').map(n => n[0]).join('') || '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 flex gap-2">
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Avatar className="w-7 h-7 shrink-0">
+                    <AvatarFallback className={`${session?.user.avatarColor || 'bg-muted'} text-white text-xs font-semibold`}>
+                      {session?.user.anonymousName.split(' ').map(n => n[0]).join('') || '?'}
+                    </AvatarFallback>
+                  </Avatar>
                   <Textarea
                     placeholder="Send some support..."
                     value={commentText}
@@ -134,10 +196,22 @@ export function PostCard({ post }: PostCardProps) {
                     className="min-h-9 py-2 text-sm resize-none"
                     rows={1}
                   />
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <label className="flex-1 cursor-pointer rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground">
+                    <span>{commentMediaData ? 'Change photo' : 'Add photo'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={handleCommentMediaChange}
+                    />
+                  </label>
                   <Button
                     size="icon"
                     onClick={handleComment}
-                    disabled={!commentText.trim() || isCommenting}
+                    disabled={(!commentText.trim() && !commentMediaData) || isCommenting}
                     className="shrink-0"
                   >
                     {isCommenting ? (
@@ -148,6 +222,22 @@ export function PostCard({ post }: PostCardProps) {
                     <span className="sr-only">Send comment</span>
                   </Button>
                 </div>
+
+                {commentMediaData && (
+                  <div className="rounded-2xl overflow-hidden border border-border bg-muted">
+                    <img src={commentMediaData} alt={commentMediaName} className="w-full object-cover" />
+                    <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-muted-foreground">
+                      <span className="truncate">{commentMediaName}</span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCommentMedia}
+                        className="text-primary hover:text-primary/80"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

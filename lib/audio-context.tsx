@@ -7,25 +7,27 @@ interface AudioContextType {
   currentSound: CandleType | null
   isPlaying: boolean
   volume: number
-  playSound: (type: CandleType) => void
+  autoplayBlocked: boolean
+  playSound: (type: CandleType) => Promise<void>
   stopSound: () => void
   setVolume: (volume: number) => void
   togglePlay: () => void
+  selectTheme: (type: CandleType) => void  // Tambah untuk select tema dengan autoplay
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined)
 
-// Using free ambient sounds from pixabay-style URLs (placeholder)
 const SOUND_URLS: Record<CandleType, string> = {
-  rain: 'https://cdn.freesound.org/previews/531/531947_5765487-lq.mp3',
-  forest: 'https://cdn.freesound.org/previews/586/586541_12534774-lq.mp3', 
-  ocean: 'https://cdn.freesound.org/previews/527/527424_11265837-lq.mp3'
+  rain: '/sound/rain.mp3',
+  forest: '/sound/forest.mp3',
+  ocean: '/sound/ocean.mp3'
 }
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const [currentSound, setCurrentSound] = useState<CandleType | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [volume, setVolumeState] = useState(0.3)
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -37,31 +39,44 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const playSound = (type: CandleType) => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-    }
+  // 🔥 PLAY SOUND (autoplay langsung, set state optimis)
+  const playSound = async (type: CandleType) => {
+    try {
+      // stop sebelumnya
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
 
-    const audio = new Audio(SOUND_URLS[type])
-    audio.loop = true
-    audio.volume = volume
-    audioRef.current = audio
-    
-    audio.play().then(() => {
+      const audio = new Audio(SOUND_URLS[type])
+      audio.loop = true
+      audio.volume = volume
+
+      audioRef.current = audio
+
+      // Set state optimis sebelum play
       setCurrentSound(type)
       setIsPlaying(true)
-    }).catch(err => {
-      console.log('Audio playback failed:', err)
-    })
+      setAutoplayBlocked(false)
+
+      // Coba play, jika gagal revert state
+      await audio.play()
+
+    } catch (err) {
+      console.log('Audio autoplay failed:', err)
+      setAutoplayBlocked(true)
+      setIsPlaying(false)  // Revert jika gagal
+    }
   }
 
   const stopSound = () => {
     if (audioRef.current) {
       audioRef.current.pause()
+      audioRef.current.currentTime = 0
       audioRef.current = null
     }
     setIsPlaying(false)
     setCurrentSound(null)
+    setAutoplayBlocked(false)
   }
 
   const setVolume = (newVolume: number) => {
@@ -71,16 +86,26 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const togglePlay = () => {
-    if (!audioRef.current || !currentSound) return
-    
+  const togglePlay = async () => {
+    if (!audioRef.current) return
+
     if (isPlaying) {
       audioRef.current.pause()
       setIsPlaying(false)
     } else {
-      audioRef.current.play()
-      setIsPlaying(true)
+      try {
+        await audioRef.current.play()
+        setIsPlaying(true)
+      } catch (err) {
+        console.log('Toggle play failed:', err)
+        setAutoplayBlocked(true)
+      }
     }
+  }
+
+  // Fungsi untuk select tema dengan autoplay
+  const selectTheme = (type: CandleType) => {
+    playSound(type)
   }
 
   return (
@@ -88,10 +113,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       currentSound, 
       isPlaying, 
       volume,
+      autoplayBlocked,
       playSound, 
-      stopSound, 
+      stopSound,
       setVolume,
-      togglePlay 
+      togglePlay,
+      selectTheme 
     }}>
       {children}
     </AudioContext.Provider>

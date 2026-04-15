@@ -1,4 +1,4 @@
-import type { Post, User } from './types'
+import type { Post, User, Media } from './types'
 
 // In-memory store for real-time updates
 // This will reset on server restart, but provides real-time functionality
@@ -29,6 +29,7 @@ const SAMPLE_POSTS: Post[] = [
     content: 'Today was really hard, but I managed to get out of bed and take a short walk. Small wins matter.',
     createdAt: new Date(Date.now() - 3600000).toISOString(),
     likes: ['system-2', 'system-3'],
+    media: [],
     comments: [
       {
         id: 'comment-1',
@@ -44,6 +45,7 @@ const SAMPLE_POSTS: Post[] = [
     content: 'Feeling overwhelmed with everything lately. Just needed somewhere safe to say that.',
     createdAt: new Date(Date.now() - 7200000).toISOString(),
     likes: ['system-1'],
+    media: [],
     comments: [
       {
         id: 'comment-2',
@@ -59,6 +61,7 @@ const SAMPLE_POSTS: Post[] = [
     content: 'Therapy session went well today. Learning to be kinder to myself.',
     createdAt: new Date(Date.now() - 86400000).toISOString(),
     likes: ['system-1', 'system-2'],
+    media: [],
     comments: []
   }
 ]
@@ -109,7 +112,7 @@ export function createUser(): User {
   return user
 }
 
-export function createPost(userId: string, content: string): Post {
+export function createPost(userId: string, content: string, media: Media[] = []): Post {
   const store = getStore()
   const post: Post = {
     id: Math.random().toString(36).substring(2) + Date.now().toString(36),
@@ -117,6 +120,7 @@ export function createPost(userId: string, content: string): Post {
     content,
     createdAt: new Date().toISOString(),
     likes: [],
+    media,
     comments: []
   }
   store.posts.unshift(post)
@@ -140,7 +144,7 @@ export function toggleLike(postId: string, userId: string): Post | null {
   return post
 }
 
-export function addComment(postId: string, userId: string, content: string): Post | null {
+export function addComment(postId: string, userId: string, content: string, media: Media[] = []): Post | null {
   const store = getStore()
   const post = store.posts.find(p => p.id === postId)
   if (!post) return null
@@ -149,7 +153,8 @@ export function addComment(postId: string, userId: string, content: string): Pos
     id: Math.random().toString(36).substring(2) + Date.now().toString(36),
     userId,
     content,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    media
   }
   post.comments.push(comment)
   

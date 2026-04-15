@@ -7,13 +7,13 @@ export async function POST(
 ) {
   try {
     const { postId } = await params
-    const { userId, content } = await request.json()
+    const { userId, content = '', media } = await request.json()
     
-    if (!userId || !content) {
-      return NextResponse.json({ error: 'Missing userId or content' }, { status: 400 })
+    if (!userId || (!content && !media?.length)) {
+      return NextResponse.json({ error: 'Missing userId, content, or media' }, { status: 400 })
     }
     
-    const post = addComment(postId, userId, content)
+    const post = addComment(postId, userId, content, Array.isArray(media) ? media : [])
     
     if (!post) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 })
